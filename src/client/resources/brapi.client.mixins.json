@@ -1,13 +1,14 @@
 {
-	"required": true,
-	"package": "dev.bsprout.brapi.client.mixin",
-	"compatibilityLevel": "JAVA_21",
-	"client": [
-	],
-	"injectors": {
-		"defaultRequire": 1
-	},
-	"overwrites": {
-		"requireAnnotations": true
+  "required": true,
+  "package": "dev.bsprout.brapi.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "GuiRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
 	}
 }

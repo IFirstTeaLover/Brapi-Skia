@@ -1,188 +1,141 @@
 package dev.bsprout.brapi.client;
 
-
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.Window;
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
-import dev.bsprout.brapi.client.renderHolders.Circle;
-import dev.bsprout.brapi.client.renderHolders.RoundRect;
-import dev.bsprout.brapi.client.renderHolders.Rect;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
+import org.lwjgl.system.MemoryUtil;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-
-import static dev.bsprout.brapi.client.Brapi.roundedRectShader;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 public class BRender {
+    public record RoundRectCmd(int x, int y, int w, int h, int color, int radius) {}
+    private record RectCmd(int x, int y, int w, int h, int color) {}
 
-    private final List<RoundRect> roundRects =
-            new ArrayList<>();
+    private final List<RoundRectCmd> roundRects = new ArrayList<>();
+    private final List<RectCmd> rects = new ArrayList<>();
+    public static final List<RoundRectCmd> PENDING = new ArrayList<>();
 
-    private final List<Rect> rects = new ArrayList<>();
-    private final List<Circle> circles = new ArrayList<>();
-
-    public void roundRect(
-            int x, int y,
-            int width, int height,
-            int color,
-            int r1, int r2,
-            int r3, int r4
-    ) {
-
-        roundRects.add(
-                new RoundRect(
-                        x, y,
-                        width, height,
-                        color,
-                        r1, r2, r3, r4
-                )
-        );
+    // Example: bRender.roundRect(100, 100, 100, 100, 0xFFFF0000, 10);
+    public void roundRect(int x, int y, int w, int h, int color, int radius) {
+        roundRects.add(new RoundRectCmd(x, y, w, h, color, radius));
     }
 
-    public void rect(
-            int x, int y,
-            int width, int height,
-            int color
-    ) {
-
-        rects.add(
-                new Rect(
-                        x, y,
-                        width, height,
-                        color
-                )
-        );
+    // Example: bRender.circle(100, 100, 50, 0xFFFF0000);
+    public void circle(int x, int y, int radius, int color) {
+        roundRects.add(new RoundRectCmd(x, y, radius * 2, radius * 2, color, radius));
     }
 
-    public void circle(
-            int x, int y,
-            int width, int height,
-            int color
-    ) {
-
-        circles.add(
-                new Circle(
-                        x, y,
-                        width, height,
-                        color
-                )
-        );
+    // Example: bRender.rect(100, 100, 100, 100, 0xFFFF0000);
+    public void rect(int x, int y, int w, int h, int color) {
+        rects.add(new RectCmd(x, y, w, h, color));
     }
 
+    // Call after adding all elements (e.g rect, round rect)
     public void flush(GuiGraphics graphics) {
-
-        for (RoundRect cmd : roundRects) {
-
-            renderRoundRect(
-                    graphics,
-
-                    cmd.x,
-                    cmd.y,
-
-                    cmd.width,
-                    cmd.height,
-
-                    cmd.color,
-
-                    cmd.r1,
-                    cmd.r2,
-                    cmd.r3,
-                    cmd.r4
-            );
+        for (RectCmd cmd : rects) {
+            graphics.fill(cmd.x, cmd.y, cmd.x + cmd.w, cmd.y + cmd.h, cmd.color);
         }
-
-        for (Rect cmd : rects){
-            renderRect(
-                    graphics,
-
-                    cmd.x,
-                    cmd.y,
-
-                    cmd.width,
-                    cmd.height,
-
-                    cmd.color
-            );
-        }
-
-        for (Circle cmd : circles){
-            renderRoundRect(
-                    graphics,
-
-                    cmd.x,
-                    cmd.y,
-
-                    cmd.width,
-                    cmd.height,
-
-                    cmd.color, cmd.height / 2, cmd.height / 2, cmd.height / 2, cmd.height / 2
-            );
-        }
-
-
-        roundRects.clear();
         rects.clear();
-        circles.clear();
+        PENDING.addAll(roundRects);
+        roundRects.clear();
     }
 
-    private void renderRoundRect(
-            GuiGraphics graphics,
+    // Actually render everything (you shouldn't run this, its ran automagically)
+    public static void flushPending() {
+        if (PENDING.isEmpty()) return;
 
-            int x, int y,
-            int width, int height,
+        Minecraft mc = Minecraft.getInstance();
 
-            int color,
+        RenderTarget renderTarget = mc.getMainRenderTarget();
+        Window window = mc.getWindow();
 
-            int r1, int r2,
-            int r3, int r4
-    ) {
-        float a = (float) (color >> 24 & 255) / 255.0f;
-        float r = (float) (color >> 16 & 255) / 255.0f;
-        float g = (float) (color >> 8 & 255) / 255.0f;
-        float b = (float) (color & 255) / 255.0f;
+        int guiScale = window.getGuiScale();
+        float screenH = window.getHeight();
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShader(() -> roundedRectShader);
+        RenderSystem.AutoStorageIndexBuffer indexStorage = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
+        GpuBuffer indexBuf = indexStorage.getBuffer(6);
 
-        if (roundedRectShader.getUniform("RectSize") != null) {
-            setUniform("RectSize", (float)width, (float)height);
+        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
+                .writeTransform(
+                        new Matrix4f().setTranslation(0.0F, 0.0F, -11000.0F),
+                        new Vector4f(1.0F, 1.0F, 1.0F, 1.0F),
+                        new Vector3f(),
+                        new Matrix4f()
+                );
+
+        for (RoundRectCmd cmd : PENDING) {
+            ByteBufferBuilder allocator = new ByteBufferBuilder(4 * 16);
+            BufferBuilder builder = new BufferBuilder(allocator, VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+
+            builder.addVertex(cmd.x,         cmd.y,         0).setColor(cmd.color);
+            builder.addVertex(cmd.x,         cmd.y + cmd.h, 0).setColor(cmd.color);
+            builder.addVertex(cmd.x + cmd.w, cmd.y + cmd.h, 0).setColor(cmd.color);
+            builder.addVertex(cmd.x + cmd.w, cmd.y,         0).setColor(cmd.color);
+
+            MeshData mesh = builder.buildOrThrow();
+            MeshData.DrawState draw = mesh.drawState();
+
+            GpuBuffer vertexBuf = RenderSystem.getDevice().createBuffer(
+                    () -> "BRender vertices",
+                    GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_COPY_DST,
+                    mesh.vertexBuffer().remaining()
+            );
+            RenderSystem.getDevice().createCommandEncoder()
+                    .writeToBuffer(vertexBuf.slice(), mesh.vertexBuffer());
+            mesh.close();
+            allocator.close();
+
+            ByteBuffer rectData = MemoryUtil.memAlloc(32);
+            rectData.putFloat(cmd.x * guiScale);
+            rectData.putFloat(screenH - (cmd.y + cmd.h) * guiScale);
+            rectData.putFloat(cmd.w * guiScale);
+            rectData.putFloat(cmd.h * guiScale);
+            rectData.putFloat(cmd.radius * guiScale);
+            rectData.putFloat(0).putFloat(0).putFloat(0);
+            rectData.flip();
+
+            GpuBuffer rectDataBuf = RenderSystem.getDevice().createBuffer(
+                    () -> "BRender RectData",
+                    GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST,
+                    rectData
+            );
+            MemoryUtil.memFree(rectData);
+
+            try (RenderPass pass = RenderSystem.getDevice()
+                    .createCommandEncoder()
+                    .createRenderPass(
+                            () -> "BRender rounded rect",
+                            renderTarget.getColorTextureView(),
+                            OptionalInt.empty(),
+                            renderTarget.useDepth ? renderTarget.getDepthTextureView() : null,
+                            OptionalDouble.empty()
+                    )) {
+                pass.setPipeline(Brapi.ROUNDED_RECT_PIPELINE);
+                RenderSystem.bindDefaultUniforms(pass);
+                pass.setUniform("DynamicTransforms", dynamicTransforms);
+                pass.setUniform("RectData", rectDataBuf);
+                pass.setVertexBuffer(0, vertexBuf);
+                pass.setIndexBuffer(indexBuf, indexStorage.type());
+                pass.drawIndexed(0, 0, draw.indexCount(), 1);
+            }
+
+            vertexBuf.close();
+            rectDataBuf.close();
         }
-        if (roundedRectShader.getUniform("Radius") != null) {
-            setUniform("Radius", (float)r1);
-        }
-        if (roundedRectShader.getUniform("Color") != null) {
-            setUniform("Color", r, g, b, a);
-        }
 
-        Matrix4f matrix = graphics.pose().last().pose();
-        BufferBuilder bufferBuilder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-
-        bufferBuilder.addVertex(matrix, x, y, 0).setUv(0, 0);
-        bufferBuilder.addVertex(matrix, x, y + height, 0).setUv(0, 1);
-        bufferBuilder.addVertex(matrix, x + width, y + height, 0).setUv(1, 1);
-        bufferBuilder.addVertex(matrix, x + width, y, 0).setUv(1, 0);
-
-        BufferUploader.drawWithShader(bufferBuilder.buildOrThrow());
-
-        RenderSystem.disableBlend();
-    }
-
-    private void renderRect(GuiGraphics graphics,
-
-                            int x, int y,
-                            int width, int height,
-
-                            int color){
-        graphics.fill(x, y, x + width, y + height, color);
-    }
-
-
-    private void setUniform(String name, float... values) {
-        var uniform = roundedRectShader.getUniform(name);
-        if (uniform != null) {
-            uniform.set(values);
-        }
+        PENDING.clear();
     }
 }

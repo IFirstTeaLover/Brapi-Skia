@@ -1,9 +1,9 @@
 package dev.bsprout.brapi.client;
 
-import dev.bsprout.brapi.client.BRender;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
 
 public class Test extends Screen {
     private final BRender bRender = new BRender();
@@ -13,19 +13,22 @@ public class Test extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        bRender.roundRect(50, 50, 100, 30, 0xFF4444FF, 5, 5, 5, 5);
-        bRender.roundRect(mouseX - 10, mouseY - 10, 20, 20, 0xFFFFFFFF, 4, 4, 4, 4);
+    public void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick); // first, render the actual minecraft gui
 
-        bRender.flush(graphics);
-
-        super.render(graphics, mouseX, mouseY, partialTick);
+        bRender.roundRect(50, 50, 100, 30, 0xFFFF0000, 5); // render 100x30 rounded rectangle with 5 px rounding
+        bRender.flush(graphics); // call after super
     }
 
     @Override
     public boolean isPauseScreen() {
-        return false;
+        return false; // true = pause the game when the screen is open (singleplayer only)
     }
+
+    /*
+    Code ran when screen is opened
+    You may want to add some buttons here...
+     */
     @Override
     protected void init() {
         System.out.println("Test Screen Initialized!");
