@@ -18,5 +18,8 @@ public class GuiRendererMixin {
     ))
     private void afterDraw(GpuBufferSlice fogSlice, CallbackInfo ci) {
         BRender.flushPending();
+        BRender.flushPendingText();
+        //BRender.flushPendingBlur();
+        BRender.flushPendingTextures();
     }
 }

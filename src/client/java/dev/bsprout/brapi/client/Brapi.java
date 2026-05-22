@@ -18,6 +18,9 @@ import net.minecraft.server.packs.resources.ResourceManager;
 public class Brapi implements ClientModInitializer {
 
     public static RenderPipeline ROUNDED_RECT_PIPELINE = null;
+    public static RenderPipeline TEXT_PIPELINE = null;
+    public static RenderPipeline BLUR_PIPELINE = null;
+    public static RenderPipeline TEXTURE_PIPELINE = null;
     public static boolean pipelinesReady = false;
 
 	@Override
@@ -54,6 +57,37 @@ public class Brapi implements ClientModInitializer {
                         .withVertexShader("core/brapi_rounded_rect")
                         .withFragmentShader("core/brapi_rounded_rect")
                         .withUniform("RectData", UniformType.UNIFORM_BUFFER)
+                        .withBlend(BlendFunction.TRANSLUCENT)
+                        .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                        .build()
+        );
+
+        TEXT_PIPELINE = RenderPipelines.register(
+                RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+                        .withLocation(Identifier.fromNamespaceAndPath("brapi", "pipeline/text"))
+                        .withVertexShader("core/brapi_text")
+                        .withFragmentShader("core/brapi_text")
+                        .withBlend(BlendFunction.TRANSLUCENT)
+                        .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                        .build()
+        );
+
+        BLUR_PIPELINE = RenderPipelines.register(
+                RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+                        .withLocation(Identifier.fromNamespaceAndPath("brapi", "pipeline/blur"))
+                        .withVertexShader("core/brapi_text") // reuse text vsh, same format
+                        .withFragmentShader("core/brapi_blur")
+                        .withUniform("BlurData", UniformType.UNIFORM_BUFFER)
+                        .withBlend(BlendFunction.TRANSLUCENT)
+                        .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                        .build()
+        );
+
+        TEXTURE_PIPELINE = RenderPipelines.register(
+                RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+                        .withLocation(Identifier.fromNamespaceAndPath("brapi", "pipeline/texture"))
+                        .withVertexShader("core/brapi_text") // reuse text vsh, same format
+                        .withFragmentShader("core/brapi_texture")
                         .withBlend(BlendFunction.TRANSLUCENT)
                         .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                         .build()
