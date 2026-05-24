@@ -17,11 +17,6 @@ public class GuiRendererMixin {
             shift = At.Shift.AFTER
     ))
     private void afterDraw(GpuBufferSlice fogSlice, CallbackInfo ci) {
-//        BRender.flushPending();
-//        BRender.flushPendingText();
-//        //BRender.flushPendingBlur();
-//        BRender.flushPendingTextures();
-
         BRender.flushAll();
     }
 }
