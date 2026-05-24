@@ -14,8 +14,9 @@ in vec4 vertColor;
 out vec4 fragColor;
 
 void main() {
-    // RED8 atlas - alpha comes from red channel
-    float alpha = texture(Sampler0, texCoord).r;
+    float dist = texture(Sampler0, texCoord).r;
+    float width = fwidth(dist) * 0.7;
+    float alpha = smoothstep(0.5 - width, 0.5 + width, dist);
     if (alpha < 0.01) discard;
     fragColor = vec4(vertColor.rgb, vertColor.a * alpha) * ColorModulator;
 }

@@ -1,75 +1,109 @@
 package dev.bsprout.brapi.client;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.textures.TextureFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.stb.STBTTAlignedQuad;
-import org.lwjgl.stb.STBTTBakedChar;
+import org.lwjgl.stb.STBTTFontinfo;
 import org.lwjgl.stb.STBTruetype;
 import org.lwjgl.system.MemoryUtil;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
 
 public class BFont {
     private static final int ATLAS_SIZE = 1024;
-    private static final int BAKE_SIZE = 128;
     private static final int FIRST_CHAR = 32;
-    private static final int NUM_CHARS = 96; // ASCII 32-128
+    private static final int NUM_CHARS = 96;
+    private static final int SDF_PIXEL_DIST = 8;
+    private static final int GLYPH_SIZE = 64;
 
-    private final STBTTBakedChar.Buffer charData;
+    private record GlyphData(short x0, short y0, short x1, short y1, float xoff, float yoff, float xadvance) {}
+    private final GlyphData[] charData = new GlyphData[NUM_CHARS];
     private final GpuTexture atlasTexture;
     final GpuTextureView atlasView;
+    private final float bakeSize = GLYPH_SIZE;
 
     public BFont(Identifier fontPath) {
         try {
-            // 1. Read TTF bytes
             InputStream stream = Minecraft.getInstance()
-                    .getResourceManager()
-                    .open(fontPath);
+                    .getResourceManager().open(fontPath);
             byte[] ttfBytes = stream.readAllBytes();
             stream.close();
 
             ByteBuffer ttfBuf = MemoryUtil.memAlloc(ttfBytes.length);
             ttfBuf.put(ttfBytes).flip();
 
-            // 2. Bake at 128px into a single-channel bitmap
+            STBTTFontinfo fontInfo = STBTTFontinfo.malloc();
+            STBTruetype.stbtt_InitFont(fontInfo, ttfBuf, 0);
+            float scale = STBTruetype.stbtt_ScaleForPixelHeight(fontInfo, GLYPH_SIZE);
+
             ByteBuffer bitmap = MemoryUtil.memAlloc(ATLAS_SIZE * ATLAS_SIZE);
-            charData = STBTTBakedChar.malloc(NUM_CHARS);
-            STBTruetype.stbtt_BakeFontBitmap(
-                    ttfBuf, BAKE_SIZE,
-                    bitmap,
-                    ATLAS_SIZE, ATLAS_SIZE,
-                    FIRST_CHAR, charData
-            );
+
+            int penX = 0, penY = 0, rowH = 0;
+
+            for (int i = 0; i < NUM_CHARS; i++) {
+                int codepoint = FIRST_CHAR + i;
+                int[] w = new int[1], h = new int[1], xoff = new int[1], yoff = new int[1];
+
+                ByteBuffer sdf = STBTruetype.stbtt_GetCodepointSDF(
+                        fontInfo, scale, codepoint,
+                        SDF_PIXEL_DIST, (byte) 128,
+                        (float) SDF_PIXEL_DIST / GLYPH_SIZE * 255f,
+                        w, h, xoff, yoff
+                );
+
+                int[] advance = new int[1], lsb = new int[1];
+                STBTruetype.stbtt_GetCodepointHMetrics(fontInfo, codepoint, advance, lsb);
+
+                if (sdf == null || w[0] == 0 || h[0] == 0) {
+                    charData[i] = new GlyphData((short)0, (short)0, (short)0, (short)0,
+                            xoff[0], yoff[0], advance[0] * scale);
+                    continue;
+                }
+
+                if (penX + w[0] > ATLAS_SIZE) {
+                    penX = 0;
+                    penY += rowH + 1;
+                    rowH = 0;
+                }
+
+                for (int row = 0; row < h[0]; row++) {
+                    int srcOff = row * w[0];
+                    int dstOff = (penY + row) * ATLAS_SIZE + penX;
+                    for (int col = 0; col < w[0]; col++) {
+                        bitmap.put(dstOff + col, sdf.get(srcOff + col));
+                    }
+                }
+
+                charData[i] = new GlyphData(
+                        (short) penX, (short) penY,
+                        (short)(penX + w[0]), (short)(penY + h[0]),
+                        xoff[0], yoff[0],
+                        advance[0] * scale
+                );
+
+                penX += w[0] + 1;
+                rowH = Math.max(rowH, h[0]);
+                STBTruetype.stbtt_FreeSDF(sdf);
+            }
+
+            fontInfo.free();
             MemoryUtil.memFree(ttfBuf);
 
-            // 3. Upload to GPU as RED8 (single channel grayscale)
             atlasTexture = RenderSystem.getDevice().createTexture(
-                    "BFont atlas",
+                    "BFont SDF atlas",
                     GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_COPY_DST,
                     TextureFormat.RED8,
                     ATLAS_SIZE, ATLAS_SIZE, 1, 1
             );
-
             RenderSystem.getDevice().createCommandEncoder()
-                    .writeToTexture(
-                            atlasTexture,
-                            bitmap,
+                    .writeToTexture(atlasTexture, bitmap,
                             NativeImage.Format.LUMINANCE,
-                            0, 0,          // src x, y
-                            0, 0,          // dst x, y
-                            ATLAS_SIZE,    // width
-                            ATLAS_SIZE     // height
-                    );
+                            0, 0, 0, 0, ATLAS_SIZE, ATLAS_SIZE);
             MemoryUtil.memFree(bitmap);
 
             atlasView = RenderSystem.getDevice().createTextureView(atlasTexture);
@@ -79,50 +113,35 @@ public class BFont {
         }
     }
 
-    // Returns glyph quads for the given text at the given size
-    // Each quad = x0,y0,x1,y1,u0,v0,u1,v1
     public float[][] getQuads(String text, float x, float y, float size) {
-        float scale = size / BAKE_SIZE;
-        float[] xpos = {x};
-        float[] ypos = {y};
-
+        float scale = size / bakeSize;
+        float curX = x;
         float[][] quads = new float[text.length()][8];
-        STBTTAlignedQuad quad = STBTTAlignedQuad.malloc();
-        FloatBuffer xbuf = MemoryUtil.memAllocFloat(1);
-        FloatBuffer ybuf = MemoryUtil.memAllocFloat(1);
-        xbuf.put(0, x / scale);
-        ybuf.put(0, (y + size) / scale);
 
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c < FIRST_CHAR || c >= FIRST_CHAR + NUM_CHARS) continue;
+            GlyphData bc = charData[c - FIRST_CHAR];
+            if (bc == null) continue;
 
-            STBTruetype.stbtt_GetBakedQuad(
-                    charData, ATLAS_SIZE, ATLAS_SIZE,
-                    c - FIRST_CHAR,
-                    xbuf, ybuf, quad, true
-            );
+            float x0 = curX + bc.xoff() * scale;
+            float y0 = y    + bc.yoff() * scale;
+            float x1 = x0  + (bc.x1() - bc.x0()) * scale;
+            float y1 = y0  + (bc.y1() - bc.y0()) * scale;
 
-            // Scale quad positions back up
-            quads[i][0] = quad.x0() * scale;
-            quads[i][1] = quad.y0() * scale;
-            quads[i][2] = quad.x1() * scale;
-            quads[i][3] = quad.y1() * scale;
-            // UV coords are already normalized 0-1
-            quads[i][4] = quad.s0();
-            quads[i][5] = quad.t0();
-            quads[i][6] = quad.s1();
-            quads[i][7] = quad.t1();
+            quads[i][0] = x0; quads[i][1] = y0;
+            quads[i][2] = x1; quads[i][3] = y1;
+            quads[i][4] = (float) bc.x0() / ATLAS_SIZE;
+            quads[i][5] = (float) bc.y0() / ATLAS_SIZE;
+            quads[i][6] = (float) bc.x1() / ATLAS_SIZE;
+            quads[i][7] = (float) bc.y1() / ATLAS_SIZE;
+
+            curX += bc.xadvance() * scale;
         }
-
-        MemoryUtil.memFree(xbuf);
-        MemoryUtil.memFree(ybuf);
-        quad.free();
         return quads;
     }
 
     public void close() {
-        charData.free();
         atlasView.close();
         atlasTexture.close();
     }

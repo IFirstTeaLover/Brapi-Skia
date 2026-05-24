@@ -19,7 +19,29 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 public class BRender {
-    public record RoundRectCmd(int x, int y, int w, int h, int color, int r1, int r2, int r3, int r4, int strokeWidth, int layer) {}
+    public static class RoundRectCmd {
+        public final int x, y, w, h, color, r1, r2, r3, r4, strokeWidth, layer;
+
+        public RoundRectCmd(int x, int y, int w, int h, int color, int r1, int r2, int r3, int r4, int strokeWidth, int layer) {
+            this.x = x; this.y = y; this.w = w; this.h = h;
+            this.color = color; this.r1 = r1; this.r2 = r2;
+            this.r3 = r3; this.r4 = r4; this.strokeWidth = strokeWidth;
+            this.layer = layer;
+        }
+
+        public int x() { return x; }
+        public int y() { return y; }
+        public int w() { return w; }
+        public int h() { return h; }
+        public int color() { return color; }
+        public int r1() { return r1; }
+        public int r2() { return r2; }
+        public int r3() { return r3; }
+        public int r4() { return r4; }
+        public int strokeWidth() { return strokeWidth; }
+        public int layer() { return layer; }
+    }
+
     private record RectCmd(int x, int y, int w, int h, int color, int layer) {}
 
     private final List<RoundRectCmd> roundRects = new ArrayList<>();
@@ -30,6 +52,24 @@ public class BRender {
 
     private record BlurCmd(int x, int y, int w, int h, float strength) {}
     private final List<BlurCmd> blurs = new ArrayList<>();
+
+    public static class GradientRoundRectCmd extends RoundRectCmd {
+        public final int colorTL, colorTR, colorBL, colorBR;
+
+        public GradientRoundRectCmd(int x, int y, int w, int h, int r1, int r2, int r3, int r4,
+                                    int strokeWidth, int layer,
+                                    Gradient gradient, GradientDirection dir) {
+            super(x, y, w, h, 0, r1, r2, r3, r4, strokeWidth, layer);
+            int[] c = BRender.cornersFromGradient(gradient, dir);
+            this.colorTL = c[0]; this.colorTR = c[1];
+            this.colorBL = c[2]; this.colorBR = c[3];
+        }
+
+        public int colorTL() { return colorTL; }
+        public int colorTR() { return colorTR; }
+        public int colorBL() { return colorBL; }
+        public int colorBR() { return colorBR; }
+    }
 
     public static GuiGraphics pendingGraphics;
 
@@ -187,6 +227,53 @@ public class BRender {
     // Example: bRender.drawTexture9Slice(slice, 100, 100, 300, 200, 0xFFFFFFFF, 1);
     public void drawTexture9Slice(NineSlice slice, float x, float y, float w, float h, int color, boolean linear, int layer) {
         nineSlices.add(new NineSliceCmd(slice, x, y, w, h, color, linear, layer));
+    }
+
+
+    // roundRect
+    public void roundRect(int x, int y, int w, int h, Gradient g, GradientDirection dir, int radius, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, radius, radius, radius, radius, 0, layer, g, dir));
+    }
+    public void roundRect(int x, int y, int w, int h, Gradient g, GradientDirection dir, int r1, int r2, int r3, int r4, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, r1, r2, r3, r4, 0, layer, g, dir));
+    }
+    public void roundRect(int x, int y, int w, int h, Gradient g, GradientDirection dir, int r1, int r2, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, r1, r2, r1, r2, 0, layer, g, dir));
+    }
+
+    // rect
+    public void rect(int x, int y, int w, int h, Gradient g, GradientDirection dir, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, 0, 0, 0, 0, 0, layer, g, dir));
+    }
+
+    // circle
+    public void circle(int x, int y, int radius, Gradient g, GradientDirection dir, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, radius*2, radius*2, radius, radius, radius, radius, 0, layer, g, dir));
+    }
+
+    // strokeRounded
+    public void strokeRounded(int x, int y, int w, int h, Gradient g, GradientDirection dir, int radius, int strokeWidth, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, radius, radius, radius, radius, strokeWidth, layer, g, dir));
+    }
+    public void strokeRounded(int x, int y, int w, int h, Gradient g, GradientDirection dir, int r1, int r2, int strokeWidth, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, r1, r2, r1, r2, strokeWidth, layer, g, dir));
+    }
+    public void strokeRounded(int x, int y, int w, int h, Gradient g, GradientDirection dir, int r1, int r2, int r3, int r4, int strokeWidth, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, r1, r2, r3, r4, strokeWidth, layer, g, dir));
+    }
+
+    // roundRectStroked (fill gradient, solid stroke)
+    public void roundRectStroked(int x, int y, int w, int h, Gradient fillGradient, GradientDirection dir, int strokeColor, int radius, int strokeWidth, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, radius, radius, radius, radius, 0, layer, fillGradient, dir));
+        roundRects.add(new RoundRectCmd(x, y, w, h, strokeColor, radius, radius, radius, radius, strokeWidth, layer));
+    }
+
+    // stroke (outline only, gradient)
+    public void stroke(int x, int y, int w, int h, Gradient g, GradientDirection dir, int strokeWidth, int layer) {
+        roundRects.add(new GradientRoundRectCmd(x, y, w, strokeWidth, 0, 0, 0, 0, 0, layer, g, dir));
+        roundRects.add(new GradientRoundRectCmd(x, y+h-strokeWidth, w, strokeWidth, 0, 0, 0, 0, 0, layer, g, dir));
+        roundRects.add(new GradientRoundRectCmd(x, y+strokeWidth, strokeWidth, h-strokeWidth*2, 0, 0, 0, 0, 0, layer, g, dir));
+        roundRects.add(new GradientRoundRectCmd(x+w-strokeWidth, y+strokeWidth, strokeWidth, h-strokeWidth*2, 0, 0, 0, 0, 0, layer, g, dir));
     }
 
 
@@ -383,13 +470,20 @@ public class BRender {
         ByteBuffer verts = MemoryUtil.memAlloc(4 * 16);
 
         for (int i = 0; i < count; i++) {
-            RoundRectCmd cmd = batch.get(i); // <-- only change in this block
+            RoundRectCmd cmd = batch.get(i);
 
             verts.clear();
-            putVertex(verts, cmd.x(),         cmd.y(),         cmd.color());
-            putVertex(verts, cmd.x(),         cmd.y() + cmd.h(), cmd.color());
-            putVertex(verts, cmd.x() + cmd.w(), cmd.y() + cmd.h(), cmd.color());
-            putVertex(verts, cmd.x() + cmd.w(), cmd.y(),         cmd.color());
+            if (cmd instanceof GradientRoundRectCmd g) {
+                putVertex(verts, g.x(),         g.y(),         g.colorTL());
+                putVertex(verts, g.x(),         g.y() + g.h(), g.colorBL());
+                putVertex(verts, g.x() + g.w(), g.y() + g.h(), g.colorBR());
+                putVertex(verts, g.x() + g.w(), g.y(),         g.colorTR());
+            } else {
+                putVertex(verts, cmd.x(),         cmd.y(),         cmd.color());
+                putVertex(verts, cmd.x(),         cmd.y() + cmd.h(), cmd.color());
+                putVertex(verts, cmd.x() + cmd.w(), cmd.y() + cmd.h(), cmd.color());
+                putVertex(verts, cmd.x() + cmd.w(), cmd.y(),         cmd.color());
+            }
             verts.flip();
             RenderSystem.getDevice().createCommandEncoder()
                     .writeToBuffer(vertexGpuBufs[i].slice(), verts);
@@ -557,5 +651,15 @@ public class BRender {
         buf.put((byte)((color >> 8)  & 0xFF)); // g
         buf.put((byte)(color         & 0xFF)); // b
         buf.put((byte)((color >> 24) & 0xFF)); // a
+    }
+
+    public static int[] cornersFromGradient(Gradient g, GradientDirection dir) {
+        // returns [TL, TR, BL, BR]
+        return switch (dir) {
+            case LEFT_RIGHT ->  new int[]{ g.sample(0), g.sample(1), g.sample(0), g.sample(1) };
+            case TOP_BOTTOM ->  new int[]{ g.sample(0), g.sample(0), g.sample(1), g.sample(1) };
+            case TOP_LEFT_BOTTOM_RIGHT -> new int[]{ g.sample(0), g.sample(0.5f), g.sample(0.5f), g.sample(1) };
+            case TOP_RIGHT_BOTTOM_LEFT -> new int[]{ g.sample(0.5f), g.sample(0), g.sample(1), g.sample(0.5f) };
+        };
     }
 }
