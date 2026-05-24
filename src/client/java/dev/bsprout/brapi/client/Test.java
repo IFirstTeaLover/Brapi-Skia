@@ -20,7 +20,7 @@ public class Test extends Screen {
     protected void init() {
         font = new BFont(Identifier.fromNamespaceAndPath("brapi", "fonts/noto_sans_regular.ttf"));
         texture = new BTexture(Identifier.fromNamespaceAndPath("brapi", "textures/mc_button.png"));
-        nineSlice = BRender.nineslicify(texture, 4, 4, 4, 4);
+        nineSlice = BUtils.nineslicify(texture, 4, 4, 4, 4);
     }
 
     @Override
@@ -30,86 +30,86 @@ public class Test extends Screen {
         // --- Filled shapes ---
 
         // Plain rect
-        bRender.rect(10, 10, 80, 30, 0xFFFF0000);
+        bRender.rect(10, 10, 80, 30, 0xFFFF0000,1 );
 
         // Rounded rect - uniform radius
-        bRender.roundRect(100, 10, 80, 30, 0xFF00FF00, 8);
+        bRender.roundRect(100, 10, 80, 30, 0xFF00FF00, 8, 1);
 
         // Rounded rect - two radii (top-left/bottom-right, top-right/bottom-left)
-        bRender.roundRect(190, 10, 80, 30, 0xFF0000FF, 16, 4);
+        bRender.roundRect(190, 10, 80, 30, 0xFF0000FF, 16, 4, 1);
 
         // Rounded rect - four individual radii
-        bRender.roundRect(280, 10, 80, 30, 0xFFFFFF00, 0, 8, 16, 4);
+        bRender.roundRect(280, 10, 80, 30, 0xFFFFFF00, 0, 8, 16, 4, 1);
 
         // Circle
-        bRender.circle(380, 10, 30, 0xFFFF00FF);
+        bRender.circle(380, 10, 30, 0xFFFF00FF, 1);
 
         // Semi-transparent rect
-        bRender.roundRect(420, 10, 80, 30, 0x80FF8800, 6);
+        bRender.roundRect(420, 10, 80, 30, 0x80FF8800, 6, 1);
 
         // --- Strokes ---
 
         // Plain stroke
-        bRender.stroke(10, 60, 80, 30, 0xFFFFFFFF, 2);
+        bRender.stroke(10, 60, 80, 30, 0xFFFFFFFF, 2, 1);
 
         // Rounded stroke - uniform radius
-        bRender.strokeRounded(100, 60, 80, 30, 0xFFFFFFFF, 8, 2);
+        bRender.strokeRounded(100, 60, 80, 30, 0xFFFFFFFF, 8, 2, 1);
 
         // Rounded stroke - two radii
-        bRender.strokeRounded(190, 60, 80, 30, 0xFFFFFFFF, 16, 4, 2);
+        bRender.strokeRounded(190, 60, 80, 30, 0xFFFFFFFF, 16, 4, 2, 1);
 
         // Rounded stroke - four radii
-        bRender.strokeRounded(280, 60, 80, 30, 0xFFFFFFFF, 0, 8, 16, 4, 2);
+        bRender.strokeRounded(280, 60, 80, 30, 0xFFFFFFFF, 0, 8, 16, 4, 2, 1);
 
         // --- Filled + stroke ---
 
         // roundRectStroked - uniform radius
-        bRender.roundRectStroked(10, 110, 80, 30, 0xFF1144AA, 0xFFFFFFFF, 8, 2);
+        bRender.roundRectStroked(10, 110, 80, 30, 0xFF1144AA, 0xFFFFFFFF, 8, 2, 1);
 
         // roundRectStroked - two radii
-        bRender.roundRectStroked(100, 110, 80, 30, 0xFF228844, 0xFFFFFF00, 16, 4, 2);
+        bRender.roundRectStroked(100, 110, 80, 30, 0xFF228844, 0xFFFFFF00, 16, 4, 2, 1);
 
         // roundRectStroked - four radii
-        bRender.roundRectStroked(190, 110, 80, 30, 0xFF884422, 0xFF00FFFF, 0, 8, 16, 4, 2);
+        bRender.roundRectStroked(190, 110, 80, 30, 0xFF884422, 0xFF00FFFF, 0, 8, 16, 4, 2, 1);
 
         // --- Text ---
 
         // Small text
-        bRender.drawText(font, "Text at 10px", 10, 160, 10, 0xFFFFFFFF);
+        bRender.drawText(font, "Text at 10px", 10, 160, 10, 0xFFFFFFFF, 1);
 
         // Medium text
-        bRender.drawText(font, "Text at 20px", 10, 180, 20, 0xFFFFFF00);
+        bRender.drawText(font, "Text at 20px", 10, 180, 20, 0xFFFFFF00, 1);
 
         // Large text
-        bRender.drawText(font, "Text at 40px", 10, 210, 40, 0xFFFF8800);
+        bRender.drawText(font, "Text at 40px", 10, 210, 40, 0xFFFF8800, 1);
 
         // Colored text
-        bRender.drawText(font, "Red 16px", 10, 265, 16, 0xFFFF0000);
-        bRender.drawText(font, "Green 16px", 120, 265, 16, 0xFF00FF00);
-        bRender.drawText(font, "Blue 16px", 240, 265, 16, 0xFF0088FF);
+        bRender.drawText(font, "Red 16px", 10, 265, 16, 0xFFFF0000, 1);
+        bRender.drawText(font, "Green 16px", 120, 265, 16, 0xFF00FF00, 1);
+        bRender.drawText(font, "Blue 16px", 240, 265, 16, 0xFF0088FF, 1);
 
         // --- Textures ---
 
         // Stretched
-        bRender.drawTexture(texture, 10, 290, 80, 40, 0xFFFFFFFF, false);
+        bRender.drawTexture(texture, 10, 290, 80, 40, 0xFFFFFFFF, false, 1);
 
         // Cropped - top-left 8x8 of texture
-        bRender.drawTextureCropped(texture, 100, 290, 40, 40, 0, 0, 8, 8, 0xFFFFFFFF, false);
+        bRender.drawTextureCropped(texture, 100, 290, 40, 40, 0, 0, 8, 8, 0xFFFFFFFF, false, 1);
 
         // Tiled
-        bRender.drawTextureTiled(texture, 150, 290, 80, 40, 0xFFFFFFFF, false);
+        bRender.drawTextureTiled(texture, 150, 290, 80, 40, 0xFFFFFFFF, false, 1);
 
         // Tinted texture
-        bRender.drawTexture(texture, 240, 290, 80, 40, 0xFFFF8800, false);
+        bRender.drawTexture(texture, 240, 290, 80, 40, 0xFFFF8800, false, 1);
 
         // 9-sliced small
-        bRender.drawTexture9Slice(nineSlice, 10, 350, 100, 50, 0xFFFFFFFF, false);
+        bRender.drawTexture9Slice(nineSlice, 10, 350, 100, 50, 0xFFFFFFFF, false, 1);
 
         // 9-sliced large
-        bRender.drawTexture9Slice(nineSlice, 120, 350, 250, 80, 0xFFFFFFFF, false);
+        bRender.drawTexture9Slice(nineSlice, 120, 350, 250, 80, 0xFFFFFFFF, false, 1);
 
         // 9-sliced tinted
-        bRender.drawTexture9Slice(nineSlice, 380, 350, 120, 80, 0xFF88CCFF, false);
+        bRender.drawTexture9Slice(nineSlice, 380, 350, 120, 80, 0xFF88CCFF, false, 1);
 
         bRender.flush(graphics);
     }
