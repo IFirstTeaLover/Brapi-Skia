@@ -54,7 +54,7 @@ Call `bRender.flush(graphics)` after adding all elements to submit them for rend
 
 ## License
 
-    Brapi, Minecraft UI Rendering API
+    Brapi, Minecraft UI Rendering Lib
     Copyright (C) 2026 BSprout
 
     This program is free software: you can redistribute it and/or modify
