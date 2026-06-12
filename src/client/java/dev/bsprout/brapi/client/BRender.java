@@ -10,6 +10,7 @@ import com.mojang.blaze3d.textures.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.util.FormattedCharSequence;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -47,7 +48,12 @@ public class BRender {
     private final List<RoundRectCmd> roundRects = new ArrayList<>();
     private final List<RectCmd> rects = new ArrayList<>();
 
-    private record TextCmd(BFont font, String text, float x, float y, float size, int color, boolean shadow, boolean centered, int layer) {}
+    private record TextCmd(BFont font, String text, float x, float y, float size, int color, boolean shadow, boolean centered, int layer, int[] charColors, float[][] bakedQuads) {
+        TextCmd(BFont font, String text, float x, float y, float size, int color, boolean shadow, boolean centered, int layer) {
+            this(font, text, x, y, size, color, shadow, centered, layer, null, null);
+        }
+    }
+
     private final List<TextCmd> texts = new ArrayList<>();
 
     private record BlurCmd(int x, int y, int w, int h, float strength) {}
@@ -179,6 +185,11 @@ public class BRender {
     // Example: bRender.drawText(myFont, "Hello!", 100, 100, 24, 0xFFFFFFFF, 1);
     public void drawText(BFont font, String text, float x, float y, float size, int color, int layer) {
         texts.add(new TextCmd(font, text, x, y, size, color, false, false, layer));
+    }
+
+    public void drawText(BFont font, FormattedCharSequence text, float x, float y, float size, int defaultColor, int layer) {
+        BFont.FormattedQuads fq = font.getQuadsFormatted(text, x, y, size, defaultColor);
+        texts.add(new TextCmd(font, "", x, y, size, defaultColor, false, false, layer, fq.colors(), fq.quads()));
     }
 
     // Example: bRender.drawTextShadow(myFont, "Hello!", 100, 100, 24, 0xFFFFFFFF, 1);
@@ -376,16 +387,23 @@ public class BRender {
 
         GpuSampler sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
 
-        float[][] quads = cmd.font().getQuads(cmd.text(), cmd.x(), cmd.y(), cmd.size());
+        float[][] quads = cmd.bakedQuads() != null
+                ? cmd.bakedQuads()
+                : cmd.font().getQuads(cmd.text(), cmd.x(), cmd.y(), cmd.size());
 
         ByteBuffer verts = MemoryUtil.memAlloc(quads.length * 4 * 24);
-        for (float[] q : quads) {
+
+        for (int i = 0; i < quads.length; i++) {
+            float[] q = quads[i];
+            int color = (cmd.charColors() != null && i < cmd.charColors().length)
+                    ? cmd.charColors()[i]
+                    : cmd.color();
             float x0 = q[0], y0 = q[1], x1 = q[2], y1 = q[3];
             float u0 = q[4], v0 = q[5], u1 = q[6], v1 = q[7];
-            putTextVertex(verts, x0, y0, u0, v0, cmd.color());
-            putTextVertex(verts, x0, y1, u0, v1, cmd.color());
-            putTextVertex(verts, x1, y1, u1, v1, cmd.color());
-            putTextVertex(verts, x1, y0, u1, v0, cmd.color());
+            putTextVertex(verts, x0, y0, u0, v0, color);
+            putTextVertex(verts, x0, y1, u0, v1, color);
+            putTextVertex(verts, x1, y1, u1, v1, color);
+            putTextVertex(verts, x1, y0, u1, v0, color);
         }
         verts.flip();
 

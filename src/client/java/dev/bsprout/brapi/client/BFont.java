@@ -7,12 +7,15 @@ import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.textures.TextureFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.FormattedCharSequence;
 import org.lwjgl.stb.STBTTFontinfo;
 import org.lwjgl.stb.STBTruetype;
 import org.lwjgl.system.MemoryUtil;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BFont {
     private static final int ATLAS_SIZE = 1024;
@@ -21,7 +24,10 @@ public class BFont {
     private static final int SDF_PIXEL_DIST = 8;
     private static final int GLYPH_SIZE = 64;
 
+    public float ascent;
+
     private record GlyphData(short x0, short y0, short x1, short y1, float xoff, float yoff, float xadvance) {}
+    public record FormattedQuads(float[][] quads, int[] colors) {}
     private final GlyphData[] charData = new GlyphData[NUM_CHARS];
     private final GpuTexture atlasTexture;
     final GpuTextureView atlasView;
@@ -40,6 +46,10 @@ public class BFont {
             STBTTFontinfo fontInfo = STBTTFontinfo.malloc();
             STBTruetype.stbtt_InitFont(fontInfo, ttfBuf, 0);
             float scale = STBTruetype.stbtt_ScaleForPixelHeight(fontInfo, GLYPH_SIZE);
+
+            int[] ascent = new int[1], descent = new int[1], lineGap = new int[1];
+            STBTruetype.stbtt_GetFontVMetrics(fontInfo, ascent, descent, lineGap);
+            this.ascent = ascent[0] * scale;
 
             ByteBuffer bitmap = MemoryUtil.memAlloc(ATLAS_SIZE * ATLAS_SIZE);
 
@@ -131,10 +141,10 @@ public class BFont {
 
             quads[i][0] = x0; quads[i][1] = y0;
             quads[i][2] = x1; quads[i][3] = y1;
-            quads[i][4] = (float) bc.x0() / ATLAS_SIZE;
-            quads[i][5] = (float) bc.y0() / ATLAS_SIZE;
-            quads[i][6] = (float) bc.x1() / ATLAS_SIZE;
-            quads[i][7] = (float) bc.y1() / ATLAS_SIZE;
+            quads[i][4] = (float) (bc.x0() + 1) / ATLAS_SIZE;
+            quads[i][5] = (float) (bc.y0() + 1) / ATLAS_SIZE;
+            quads[i][6] = (float) (bc.x1() - 1) / ATLAS_SIZE;
+            quads[i][7] = (float) (bc.y1() - 1) / ATLAS_SIZE;
 
             curX += bc.xadvance() * scale;
         }
@@ -144,5 +154,63 @@ public class BFont {
     public void close() {
         atlasView.close();
         atlasTexture.close();
+    }
+
+    public float getLineHeight(float size) {
+        return size;
+    }
+
+    public float getAscent(float size) {
+        return ascent * (size / bakeSize);
+    }
+
+    public float textSize(String text, float size) {
+        float scale = size / bakeSize;
+        float width = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c < FIRST_CHAR || c >= FIRST_CHAR + NUM_CHARS) continue;
+            GlyphData bc = charData[c - FIRST_CHAR];
+            if (bc == null) continue;
+            width += bc.xadvance() * scale;
+        }
+        return width;
+    }
+
+    public FormattedQuads getQuadsFormatted(FormattedCharSequence text, float x, float y, float size, int defaultColor) {
+        List<float[]> quadList = new ArrayList<>();
+        List<Integer> colorList = new ArrayList<>();
+        float[] curX = { x };
+
+        text.accept((index, style, codePoint) -> {
+            int color = style.getColor() != null
+                    ? (0xFF000000 | style.getColor().getValue())
+                    : defaultColor;
+            char c = (char) codePoint;
+            if (c >= FIRST_CHAR && c < FIRST_CHAR + NUM_CHARS) {
+                GlyphData bc = charData[c - FIRST_CHAR];
+                float scale = size / bakeSize;
+                if (bc != null && !(bc.x1() == 0 && bc.y1() == 0)) {
+                    float x0 = curX[0] + bc.xoff() * scale;
+                    float y0 = y + bc.yoff() * scale;
+                    float x1 = x0 + (bc.x1() - bc.x0()) * scale;
+                    float y1 = y0 + (bc.y1() - bc.y0()) * scale;
+                    float[] q = {
+                            x0, y0, x1, y1,
+                            (float)(bc.x0() + 1) / ATLAS_SIZE,
+                            (float)(bc.y0() + 1) / ATLAS_SIZE,
+                            (float)(bc.x1() - 1) / ATLAS_SIZE,
+                            (float)(bc.y1() - 1) / ATLAS_SIZE
+                    };
+                    quadList.add(q);
+                    colorList.add(color);
+                }
+                curX[0] += bc != null ? bc.xadvance() * scale : 0;
+            }
+            return true;
+        });
+
+        int[] colors = colorList.stream().mapToInt(Integer::intValue).toArray();
+        return new FormattedQuads(quadList.toArray(new float[0][]), colors);
     }
 }
