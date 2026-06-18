@@ -1,71 +1,78 @@
-# BRAPI
+# <div align="center">Brapi</div>
+A UI rendering library for Fabric mods. Supports rounded rectangles, text, gradients, textures, and 9-slice sprites with a simple API.
 
-## Setup
-
+## 📦 Setup
 **Adding as dependency**
 
-you can't lol
+Add the repository and dependency to your `build.gradle`:
+```gradle
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
+}
+dependencies {
+    modImplementation "maven.modrinth:brapi:mc1.21.11-0.25"
+}
+```
+`fabric.mod.json`:
+```json
+"depends": {
+    "brapi": "*"
+}
+```
 
-well actually you can do jar in jar but it's not on maven central yet
+## Using in code
+Create a `BRender` instance, add draw calls, then call `flush(graphics)` to submit. Everything renders at end of frame sorted by layer. 
 
-**Using in code**
+🎨 All colors are ARGB: `0xFFFF0000` = opaque red, `0x80FF0000` = 50% transparent red.<br>
+📐 Coordinates are in GuiScale units: (100, 100) at scale 3 = (300, 300) pixels.
 
-It's pretty straightforward: you can read the main render class (`dev.bsprout.brapi.client.BRender`) and it will have all draw methods and examples.
+## 🟥 Filled shapes
+- `bRender.rect(100, 100, 100, 100, 0xFFFF0000, layer);` - red 100x100 rectangle
+- `bRender.roundRect(100, 100, 100, 100, 0xFFFF0000, 10, layer);` - rounded rectangle, 10px radius
+- `bRender.roundRect(100, 100, 100, 100, 0xFFFF0000, 10, 5, layer);` - 10px TL/BR, 5px TR/BL radius
+- `bRender.roundRect(100, 100, 100, 100, 0xFFFF0000, 10, 5, 20, 30, layer);` - individual corner radii
+- `bRender.circle(100, 100, 50, 0xFFFF0000, layer);` - circle, 50px radius
 
-All colors are in ARGB format, e.g. `0xFFFF0000` = opaque red, `0x80FF0000` = 50% transparent red.
+## 🎨 Gradients
+All filled shapes support gradients via `Gradient` and `GradientDirection`:
+- `bRender.roundRect(100, 100, 100, 100, gradient, GradientDirection.LEFT_RIGHT, 10, layer);`
 
-Also, everything is scaled in Minecraft's GuiScale, so (100, 100) will be (300, 300) on ui scale set to 3
+Directions: `LEFT_RIGHT`, `TOP_BOTTOM`, `TOP_LEFT_BOTTOM_RIGHT`, `TOP_RIGHT_BOTTOM_LEFT`
 
-**Filled shapes**
+## ✏️ Strokes (outline only)
+- `bRender.stroke(100, 100, 100, 100, 0xFFFF0000, 2, layer);` - 2px outline rectangle
+- `bRender.strokeRounded(100, 100, 100, 100, 0xFFFF0000, 10, 2, layer);` - 2px rounded outline, 10px radius
+- `bRender.strokeRounded(100, 100, 100, 100, 0xFFFF0000, 10, 5, 2, layer);` - 10px TL/BR, 5px TR/BL
+- `bRender.strokeRounded(100, 100, 100, 100, 0xFFFF0000, 10, 5, 20, 30, 2, layer);` - individual radii
 
-- `bRender.rect(100, 100, 100, 100, 0xFFFF0000);` — draws a red 100x100 rectangle at (100, 100)
+## 🖊️ Filled + stroke
+- `bRender.roundRectStroked(100, 100, 100, 100, 0xFF0000FF, 0xFFFF0000, 10, 2, layer);` - blue fill, 2px red stroke
 
-- `bRender.roundRect(100, 100, 100, 100, 0xFFFF0000, 10);` — draws a 100x100 rounded rectangle at (100, 100) with 10px corner radius
+## 🔤 Text
+- `bRender.drawText(font, "Hello!", 100, 100, 24, 0xFFFFFFFF, layer);` - BFont text
+- `bRender.drawText(font, formattedCharSequence, 100, 100, 24, 0xFFFFFFFF, layer);` - formatted text with per-character colors
+- `bRender.drawTextShadow(font, "Hello!", 100, 100, 24, 0xFFFFFFFF, layer);` - with shadow
+- `bRender.drawText("Hello!", 100, 100, 0xFFFFFFFF, layer);` - MC font fallback
 
-- `bRender.roundRect(100, 100, 100, 100, 0xFFFF0000, 10, 5);` — rounded rectangle with 10px top-left/bottom-right radius and 5px top-right/bottom-left radius
+## 🖼️ Textures
+- `bRender.drawTexture(tex, 100, 100, 200, 150, 0xFFFFFFFF, linear, layer);` - stretch to fill
+- `bRender.drawTextureCropped(tex, 100, 100, 64, 64, 0, 0, 32, 32, 0xFFFFFFFF, linear, layer);` - crop
+- `bRender.drawTextureTiled(tex, 100, 100, 200, 200, 0xFFFFFFFF, linear, layer);` - tile
+- `bRender.drawTexture9Slice(slice, 100, 100, 300, 200, 0xFFFFFFFF, linear, layer);` - 9-slice
 
-- `bRender.roundRect(100, 100, 100, 100, 0xFFFF0000, 10, 5, 20, 30);` — rounded rectangle with individual corner radii (top-left, top-right, bottom-right, bottom-left)
-
-- `bRender.circle(100, 100, 50, 0xFFFF0000);` — draws a circle with 50px radius at top-left (100, 100)
-
-**Strokes (outline only)**
-
-- `bRender.stroke(100, 100, 100, 100, 0xFFFF0000, 2);` — draws a 2px red outline rectangle at (100, 100)
-
-- `bRender.strokeRounded(100, 100, 100, 100, 0xFFFF0000, 10, 2);` — draws a 2px red rounded outline with 10px corner radius
-
-- `bRender.strokeRounded(100, 100, 100, 100, 0xFFFF0000, 10, 5, 2);` — rounded outline with 10px top-left/bottom-right radius and 5px top-right/bottom-left radius, 2px stroke
-
-- `bRender.strokeRounded(100, 100, 100, 100, 0xFFFF0000, 10, 5, 20, 30, 2);` — rounded outline with individual corner radii, 2px stroke
-
-**Filled + stroke**
-
-- `bRender.roundRectStroked(100, 100, 100, 100, 0xFF0000FF, 0xFFFF0000, 10, 2);` — blue fill with 2px red stroke, 10px radius
-
-- `bRender.roundRectStroked(100, 100, 100, 100, 0xFF0000FF, 0xFFFF0000, 10, 5, 2);` — blue fill with 2px red stroke, 10px top-left/bottom-right radius and 5px top-right/bottom-left radius
-
-- `bRender.roundRectStroked(100, 100, 100, 100, 0xFF0000FF, 0xFFFF0000, 10, 5, 20, 30, 2);` — blue fill with 2px red stroke, individual corner radii
-
-**Flushing**
-
-Call `bRender.flush(graphics)` after adding all elements to submit them for rendering.
-
-> **Note:** If you are extending `Screen`, call `super.render(...)` before `bRender.flush(graphics)` to make sure Brapi draws on top.
-
-## License
-
-    Brapi, Minecraft UI Rendering Lib
-    Copyright (C) 2026 BSprout
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+## 🔄 Flushing
+```java
+BRender r = new BRender();
+r.roundRect(...);
+r.flush(graphics); // submit to draw list
+```
