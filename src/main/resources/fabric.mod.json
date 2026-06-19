@@ -2,13 +2,13 @@
 	"schemaVersion": 1,
 	"id": "brapi",
 	"version": "${version}",
-	"name": "BRAPI",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "Brapi",
+	"description": "A Fast UI rendering for Fabric mods. Rounded rectangles, gradients, textures and SDF text.",
 	"authors": [
 		"BSprout"
 	],
 	"contact": {
-		"homepage": "https://modrinth.com/brapi",
+		"homepage": "https://modrinth.com/mod/brapi",
 		"sources": "https://github.com/ifirsttealover/brapi"
 	},
 	"license": "CC0-1.0",
