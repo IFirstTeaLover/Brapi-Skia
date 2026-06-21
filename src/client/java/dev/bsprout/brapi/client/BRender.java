@@ -184,16 +184,20 @@ public class BRender {
 
     // Example: bRender.drawText(myFont, "Hello!", 100, 100, 24, 0xFFFFFFFF, 1);
     public void drawText(BFont font, String text, float x, float y, float size, int color, int layer) {
+if (text == null || text.isEmpty()) return;
         texts.add(new TextCmd(font, text, x, y, size, color, false, false, layer));
     }
 
-    public void drawText(BFont font, FormattedCharSequence text, float x, float y, float size, int defaultColor, int layer) {
-        BFont.FormattedQuads fq = font.getQuadsFormatted(text, x, y, size, defaultColor);
-        texts.add(new TextCmd(font, "", x, y, size, defaultColor, false, false, layer, fq.colors(), fq.quads()));
-    }
+public void drawText(BFont font, FormattedCharSequence text, float x, float y, float size, int defaultColor, int layer) {
+    if (text == null) return;
+    BFont.FormattedQuads fq = font.getQuadsFormatted(text, x, y, size, defaultColor);
+    if (fq.quads() == null || fq.quads().length == 0) return; // <-- the actual guard you need
+    texts.add(new TextCmd(font, "", x, y, size, defaultColor, false, false, layer, fq.colors(), fq.quads()));
+}
 
     // Example: bRender.drawTextShadow(myFont, "Hello!", 100, 100, 24, 0xFFFFFFFF, 1);
     public void drawTextShadow(BFont font, String text, float x, float y, float size, int color, int layer) {
+if (text == null || text.isEmpty()) return;
         texts.add(new TextCmd(font, text, x, y, size, color, true, false, layer));
     }
 
