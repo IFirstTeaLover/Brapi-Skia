@@ -89,3 +89,12 @@ BRender r = new BRender();
 r.roundRect(...);
 r.flush(graphics); // submit to draw list
 ```
+
+
+## License
+
+Starting with version **0.25.2+**, this project is licensed under the **GNU Lesser General Public License v3.0 (LGPL-3.0)**. 
+
+Older versions (**0.25.0** and **0.25.1**) remain licensed under the **GNU General Public License v3.0 (GPL-3.0)** as originally released.
+
+* See `LICENSE` for the current LGPL-3.0 text.
