@@ -35,7 +35,7 @@ repositories {
     }
 }
 dependencies {
-    modImplementation "maven.modrinth:brapi:0.25+${minecraft_version}+fabric" // only supported minecraft version is 1.21.11 right now
+    modImplementation "maven.modrinth:brapi:0.25.1+${minecraft_version}+fabric" // only supported minecraft version is 1.21.11 right now
 }
 ```
 `fabric.mod.json`:
