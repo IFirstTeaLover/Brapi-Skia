@@ -141,10 +141,7 @@ public class BRender {
 
     // Example: bRender.stroke(100, 100, 100, 100, 0xFFFF0000, 2, 1);
     public void stroke(int x, int y, int w, int h, int color, int strokeWidth, int layer) {
-        rects.add(new RectCmd(x, y, w, strokeWidth, color, layer));
-        rects.add(new RectCmd(x, y + h - strokeWidth, w, strokeWidth, color, layer));
-        rects.add(new RectCmd(x, y + strokeWidth, strokeWidth, h - strokeWidth * 2, color, layer));
-        rects.add(new RectCmd(x + w - strokeWidth, y + strokeWidth, strokeWidth, h - strokeWidth * 2, color, layer));
+        roundRects.add(new RoundRectCmd(x, y, w, h, color, 0, 0, 0, 0, strokeWidth, layer));
     }
 
     // Example: bRender.strokeRounded(100, 100, 100, 100, 0xFFFF0000, 10, 2, 1);
@@ -285,10 +282,7 @@ if (text == null || text.isEmpty()) return;
 
     // stroke (outline only, gradient)
     public void stroke(int x, int y, int w, int h, Gradient g, GradientDirection dir, int strokeWidth, int layer) {
-        roundRects.add(new GradientRoundRectCmd(x, y, w, strokeWidth, 0, 0, 0, 0, 0, layer, g, dir));
-        roundRects.add(new GradientRoundRectCmd(x, y+h-strokeWidth, w, strokeWidth, 0, 0, 0, 0, 0, layer, g, dir));
-        roundRects.add(new GradientRoundRectCmd(x, y+strokeWidth, strokeWidth, h-strokeWidth*2, 0, 0, 0, 0, 0, layer, g, dir));
-        roundRects.add(new GradientRoundRectCmd(x+w-strokeWidth, y+strokeWidth, strokeWidth, h-strokeWidth*2, 0, 0, 0, 0, 0, layer, g, dir));
+        roundRects.add(new GradientRoundRectCmd(x, y, w, h, 0, 0, 0, 0, strokeWidth, layer, g, dir));
     }
 
 

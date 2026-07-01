@@ -21,6 +21,11 @@ public class Brapi implements ClientModInitializer {
     public static RenderPipeline TEXT_PIPELINE = null;
     public static RenderPipeline BLUR_PIPELINE = null;
     public static RenderPipeline TEXTURE_PIPELINE = null;
+
+    public static RenderPipeline BLUR_H_PIPELINE = null;
+    public static RenderPipeline BLUR_V_PIPELINE = null;
+    public static RenderPipeline GLASS_PIPELINE = null;
+
     public static boolean pipelinesReady = false;
 
 	@Override
@@ -51,6 +56,7 @@ public class Brapi implements ClientModInitializer {
 	}
 
     public static void initPipelines() {
+        pipelinesReady = false;
         ROUNDED_RECT_PIPELINE = RenderPipelines.register(
                 RenderPipeline.builder(RenderPipelines.GUI_SNIPPET)
                         .withLocation(Identifier.fromNamespaceAndPath("brapi", "pipeline/rounded_rect"))
@@ -67,17 +73,6 @@ public class Brapi implements ClientModInitializer {
                         .withLocation(Identifier.fromNamespaceAndPath("brapi", "pipeline/text"))
                         .withVertexShader("core/brapi_text")
                         .withFragmentShader("core/brapi_text")
-                        .withBlend(BlendFunction.TRANSLUCENT)
-                        .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                        .build()
-        );
-
-        BLUR_PIPELINE = RenderPipelines.register(
-                RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("brapi", "pipeline/blur"))
-                        .withVertexShader("core/brapi_text") // reuse text vsh, same format
-                        .withFragmentShader("core/brapi_blur")
-                        .withUniform("BlurData", UniformType.UNIFORM_BUFFER)
                         .withBlend(BlendFunction.TRANSLUCENT)
                         .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                         .build()
