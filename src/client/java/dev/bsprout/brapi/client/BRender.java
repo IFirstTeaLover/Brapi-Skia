@@ -307,7 +307,7 @@ if (text == null || text.isEmpty()) return;
     public static void flushAll() {
         if (DRAW_LIST.isEmpty()) return;
 
-        DRAW_LIST.sort(Comparator.comparingInt(DrawEntry::layer));
+        DRAW_LIST.sort(Comparator.<DrawEntry>comparingInt(DrawEntry::layer));
 
         // Batch consecutive round rects for drawMultipleIndexed fast path
         List<RoundRectCmd> rrBatch = new ArrayList<>();
@@ -548,7 +548,7 @@ if (text == null || text.isEmpty()) return;
             pass.setPipeline(Brapi.ROUNDED_RECT_PIPELINE);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("DynamicTransforms", dynamicTransforms);
-            pass.drawMultipleIndexed(draws, null, null, List.of("RectData"), null);
+            pass.<Void>drawMultipleIndexed(draws, null, null, List.<String>of("RectData"), null);
         }
     }
 
